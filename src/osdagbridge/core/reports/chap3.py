@@ -142,6 +142,90 @@ def ch3_loads(input_dict):
     else:
         fp_str = "N/A"
 
+        # ---- Live-load tables (Req 3): vehicular, associated, footway ----
+    def _on(v):
+        if isinstance(v, str):
+            return v.strip().lower() in ("true", "yes", "1")
+        return bool(v)
+
+    def _impact_str(kind):
+        try:
+            span_m = float(input_dict.get(KEY_SPAN))
+            if kind == "A":
+                return f"{1.0 + IRC6_2017.cl_208_2_impact_factor(span_m):.3f}"
+            if kind == "AA":
+                return f"{1.0 + IRC6_2017.cl_208_3_impact_factor(span_m):.3f}"
+        except Exception:
+            return "N/A"
+        return "---"
+
+    _veh_defs = [
+        ("Class A", KEY_LL_IRC_CLASS_A, "A"),
+        ("Class 70R (Wheeled)", KEY_LL_IRC_70R_WHEELED, "AA"),
+        ("Class 70R (Tracked)", KEY_LL_IRC_70R_TRACKED, "AA"),
+        ("Class AA (Wheeled)", KEY_LL_IRC_AA_WHEELED, "AA"),
+        ("Class AA (Tracked)", KEY_LL_IRC_AA_TRACKED, "AA"),
+        ("Class 70R (Bogie)", KEY_LL_IRC_70R_BOGIE, "AA"),
+        ("Class SV", KEY_LL_IRC_CLASS_SV, None),
+        ("Class Fatigue", KEY_LL_IRC_CLASS_FATIGUE, None),
+    ]
+    _ref = {"A": "IRC 6 Cl. 208.2", "AA": "IRC 6 Cl. 208.3", None: "---"}
+    _row_end = r" \\[6pt]" + "\n" + r"\hline"
+
+    veh_rows = []
+    for _label, _key, _kind in _veh_defs:
+        if _on(input_dict.get(_key)):
+            veh_rows.append(_tex(_label) + " & " + _impact_str(_kind) + " & " + _ref[_kind] + _row_end)
+    for _c in (input_dict.get(KEY_LL_CUSTOM_VEHICLES) or []):
+        _name = _c.get("name") if isinstance(_c, dict) else _c
+        if _name:
+            veh_rows.append(_tex(_name) + " & --- & User-defined" + _row_end)
+    if not veh_rows:
+        veh_rows.append("None selected & --- & ---" + _row_end)
+
+    veh_table_tex = (
+        r"\begin{longtable}{|L{6.0cm}|C{4.0cm}|p{5.5cm}|}" + "\n"
+        + lt_head(r"\textbf{Live Loads (LL) -- Vehicular Loads}",
+                  r"\textbf{Vehicle Class} \& \textbf{Impact Factor} \& \textbf{Reference}".replace(r"\&", "&")) + "\n"
+        + "\n".join(veh_rows) + "\n"
+        + r"\end{longtable}"
+    )
+
+    _brake = braking_force_str if braking_force_str not in ("", "N/A") else \
+        "Not available in this version (design lane count not stored)"
+    assoc_table_tex = (
+        r"\begin{longtable}{|L{5.5cm}|p{10.0cm}|}" + "\n"
+        + lt_head(r"\textbf{Live Loads (LL) -- Associated Loads}",
+                  r"\textbf{parameter} & \textbf{value}") + "\n"
+        + r"\textnormal{Braking Load (IRC 6)} & " + _tex(_brake) + _row_end + "\n"
+        + r"\textnormal{Centrifugal Force} & Not applicable --- straight bridge "
+          r"(curvature is not modelled in this version)" + _row_end + "\n"
+        + r"\end{longtable}"
+    )
+
+    _fp_geom = str(input_dict.get("geometry.footpath", "None")).strip().lower()
+    if _fp_geom not in ("", "none", "no"):
+        if str(fp_mode).strip().lower() in ("as per irc 6", "as per irc6", "automatic"):
+            try:
+                _fp_val = f"{IRC6_2017.cl_206_1_footway_load():.3f} kN/m\\textsuperscript{{2}} (IRC 6 Cl. 206.1)"
+            except Exception:
+                _fp_val = "N/A"
+        elif fp_value not in (None, ""):
+            _fp_val = _tex(fp_value) + " kN/m\\textsuperscript{2}"
+        else:
+            _fp_val = "N/A"
+        fp_table_tex = (
+            r"\begin{longtable}{|L{5.5cm}|p{10.0cm}|}" + "\n"
+            + lt_head(r"\textbf{Live Loads (LL) -- Footway Load}",
+                      r"\textbf{parameter} & \textbf{value}") + "\n"
+            + r"\textnormal{Footpath Provision} & " + _tex(input_dict.get("geometry.footpath")) + _row_end + "\n"
+            + r"\textnormal{Footpath Width} & " + _render_value(input_dict, "typical_section.footpath_width", " m") + _row_end + "\n"
+            + r"\textnormal{Footway Live Load} & " + _fp_val + _row_end + "\n"
+            + r"\end{longtable}"
+        )
+    else:
+        fp_table_tex = r"\noindent\textit{Footway live load: not applicable (no footpath provided).}"    
+
     # Vz / Pz — prefer stored computed values; fall back to IRC6 Table 12
     vz_val = input_dict.get(KEY_WL_HOURLY_MEAN_WIND)
     pz_val = input_dict.get(KEY_WL_HOURLY_WIND_PRESSURE)
@@ -351,17 +435,13 @@ This section summarizes all loads applied to the bridge and the load combination
 \end{longtable}
 
 \vspace{1em}
-\begin{longtable}{|L{5.5cm}|p{10.0cm}|}
-""" + lt_head(r"\textbf{Temperature Load (TL) --- per IRC 6}", r"\textbf{parameter} & \textbf{value}") + r"""
-\textnormal{Maximum Shade Temperature} & """ + (_render_value(input_dict,'shade_temp_max')) + r""" $^\circ$C \\[6pt]
-\hline
-\textnormal{Minimum Shade Temperature} & """ + (_render_value(input_dict,'shade_temp_min')) + r""" $^\circ$C \\[6pt]
-\hline
-\textnormal{Effective Bridge Temp. Range} & """ + (_render_value(input_dict, KEY_TL_BRIDGE_TEMP_MIN)) + r""" to """ + (_render_value(input_dict, KEY_TL_BRIDGE_TEMP_MAX)) + r""" $^\circ$C \\[6pt]
-\hline
-\textnormal{Temperature Rise / Fall for Design} & +""" + (_render_value(input_dict, KEY_TL_TEMP_RISE)) + r""" $^\circ$C / \textminus{}""" + (_render_value(input_dict, KEY_TL_TEMP_FALL)) + r""" $^\circ$C \\[6pt]
-\hline
-\end{longtable}
+""" + veh_table_tex + r"""
+
+\vspace{1em}
+""" + assoc_table_tex + r"""
+
+\vspace{1em}
+""" + fp_table_tex + r"""
 
 \vspace{1em}
 \begin{longtable}{|C{4.0cm}|p{11.5cm}|}
