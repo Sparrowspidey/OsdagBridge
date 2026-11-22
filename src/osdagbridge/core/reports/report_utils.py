@@ -113,3 +113,14 @@ def _fig_embed(path, caption, width=r'\textwidth', height=None):
             r'}}')
 
 
+def lt_head(caption_tex, header_row_tex):
+    """Caption + header row for first page, and the repeated header after a page break."""
+    head = r"\hline" + "\n" + header_row_tex + r" \\" + "\n" + r"\hline" + "\n"
+    return (
+        r"\caption{" + caption_tex + r"}\\" + "\n"
+        + head
+        + r"\endfirsthead" + "\n"
+        + r"\caption*{" + caption_tex + r" (continued)}\\" + "\n"
+        + head
+        + r"\endhead" + "\n"
+    )

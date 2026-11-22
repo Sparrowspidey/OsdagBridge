@@ -53,7 +53,7 @@ from osdagbridge.core.utils.common import (
     KEY_WL_VERTICAL_WIND_FORCE
 )
 
-from osdagbridge.core.reports.report_utils import _tex, _render_value
+from osdagbridge.core.reports.report_utils import _tex, _render_value, lt_head
 
 def ch3_loads(input_dict):
     # Live load vehicle names mapping
@@ -383,10 +383,7 @@ This section summarizes all loads applied to the bridge and the load combination
 
 \vspace{1em}
 \begin{longtable}{|C{4.0cm}|p{11.5cm}|}
-\caption{\textbf{Load Combinations}}
-\hline
-\textbf{Combination ID} & \textbf{Load Cases} \\[6pt]
-\hline
+""" + lt_head(r"\textbf{Load Combinations}", r"\textbf{Combination ID} & \textbf{Load Cases}") + r"""
 """ + lc_rows_str + r"""
 \end{longtable}
 
