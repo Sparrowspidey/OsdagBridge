@@ -69,4 +69,76 @@ def build_ur_charts_tex(records, images_dir):
                                 "Utilization ratio - " + title, width=r"0.85\textwidth"))
     return "\n\n".join(parts)
 
+def _num(v):
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return None
 
+
+def _bar_with_labels(ax, labels, vals, ylabel, title, fmt="{:.2f}"):
+    colors = [styles.CHART_PASS_COLOR if v is not None else "#999999" for v in vals]
+    plot_vals = [v if v is not None else 0.0 for v in vals]
+    bars = ax.bar(range(len(vals)), plot_vals, color=colors, width=0.55)
+    top = max(plot_vals) if max(plot_vals) > 0 else 1.0
+    for b, v in zip(bars, vals):
+        txt = fmt.format(v) if v is not None else "N.A."
+        ax.text(b.get_x() + b.get_width() / 2, plot_vals[bars.patches.index(b)] + top * 0.02,
+                txt, ha="center", va="bottom", fontsize=8)
+    ax.set_xticks(range(len(vals)))
+    ax.set_xticklabels(labels, fontsize=8)
+    ax.set_ylabel(ylabel, fontsize=8)
+    ax.set_ylim(0, top * 1.2)
+    ax.set_title(title, fontsize=10)
+    ax.grid(axis="y", alpha=0.3)
+
+
+def build_quantity_charts_tex(q, images_dir):
+    """q: the quantities dict (payload.inputs after calculate_material_quantities)."""
+    if not images_dir:
+        return ""
+    parts = [r"\Needspace{18\baselineskip}",
+             r"\section*{Material Quantity Charts}"]
+
+    # Chart 1: structural steel tonnage
+    girders = _num(q.get("steel_girders_wt_total"))
+    brace_parts = [_num(q.get(k)) for k in
+                   ("bracing_top_wt_total", "bracing_bot_wt_total", "bracing_diag_wt_total")]
+    brace_parts = [v for v in brace_parts if v is not None]
+    bracing = sum(brace_parts) if brace_parts else None
+    try:
+        fig, ax = plt.subplots(figsize=(6.5, 3.2), dpi=styles.CHART_DPI)
+        _bar_with_labels(ax, ["Girders", "Cross Bracing", "End Diaphragms"],
+                         [girders, bracing, None], "Weight (MT)",
+                         "Structural Steel Tonnage", fmt="{:.2f}")
+        fig.tight_layout()
+        fig.savefig(os.path.join(images_dir, "qty_steel.png"), format="png")
+        plt.close(fig)
+        parts.append(_fig_embed(
+            "images/qty_steel.png",
+            "Structural steel tonnage by member group (end diaphragm quantity "
+            "is not computed by the take-off in this version)",
+            width=r"0.8\textwidth"))
+    except Exception as exc:
+        logger.warning("Steel quantity chart failed: %s", exc)
+
+    # Chart 2: concrete volume vs reinforcement weight (different units -> two panels)
+    conc = _num(q.get("concrete_deck_vol_total"))
+    rebar = _num(q.get("rebar_deck_wt_total"))
+    try:
+        fig, (a1, a2) = plt.subplots(1, 2, figsize=(6.5, 3.2), dpi=styles.CHART_DPI)
+        _bar_with_labels(a1, ["Deck Concrete"], [conc], "Volume (m$^3$)",
+                         "Concrete Volume")
+        _bar_with_labels(a2, ["Reinforcement"], [rebar], "Weight (MT)",
+                         "Reinforcement Steel Weight")
+        fig.tight_layout()
+        fig.savefig(os.path.join(images_dir, "qty_concrete_rebar.png"), format="png")
+        plt.close(fig)
+        parts.append(_fig_embed(
+            "images/qty_concrete_rebar.png",
+            "Deck concrete volume (m$^3$) vs reinforcement steel weight (MT)",
+            width=r"0.8\textwidth"))
+    except Exception as exc:
+        logger.warning("Concrete/rebar chart failed: %s", exc)
+
+    return "\n\n".join(parts)
