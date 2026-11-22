@@ -172,21 +172,38 @@ def ch3_loads(input_dict):
     _ref = {"A": "IRC 6 Cl. 208.2", "AA": "IRC 6 Cl. 208.3", None: "---"}
     _row_end = r" \\[6pt]" + "\n" + r"\hline"
 
+    def _total_kn(label):
+        try:
+            if label == "Class A":
+                return f"{sum(IRC6_2017.cl_204_1_ClassA_vehicle()['wheel_loads']) / 1000.0:.1f}"
+            if label == "Class 70R (Wheeled)":
+                return f"{sum(IRC6_2017.cl_204_1_Class70R_vehicle_wheel()['wheel_loads']) / 1000.0:.1f}"
+            if label == "Class 70R (Tracked)":
+                _t = IRC6_2017.cl_204_1_Class70R_vehicle_track()
+                _len = _t['x'][1] - _t['x'][0]
+                return f"{2.0 * _t['wheel_loads_udl'] * _len / 1000.0:.1f}"
+            if label == "Class SV":
+                return f"{IRC6_2017.cl_204_5_1_special_vehicle()['total_load_kN']:.1f}"
+        except Exception:
+            return "N/A"
+        return "---"
+
     veh_rows = []
     for _label, _key, _kind in _veh_defs:
         if _on(input_dict.get(_key)):
-            veh_rows.append(_tex(_label) + " & " + _impact_str(_kind) + " & " + _ref[_kind] + _row_end)
+            veh_rows.append(_tex(_label) + " & " + _total_kn(_label) + " & "
+                            + _impact_str(_kind) + " & " + _ref[_kind] + _row_end)
     for _c in (input_dict.get(KEY_LL_CUSTOM_VEHICLES) or []):
         _name = _c.get("name") if isinstance(_c, dict) else _c
         if _name:
-            veh_rows.append(_tex(_name) + " & --- & User-defined" + _row_end)
+            veh_rows.append(_tex(_name) + " & --- & --- & User-defined" + _row_end)
     if not veh_rows:
-        veh_rows.append("None selected & --- & ---" + _row_end)
+        veh_rows.append("None selected & --- & --- & ---" + _row_end)
 
     veh_table_tex = (
-        r"\begin{longtable}{|L{6.0cm}|C{4.0cm}|p{5.5cm}|}" + "\n"
+        r"\begin{longtable}{|L{4.6cm}|C{3.0cm}|C{3.0cm}|p{4.9cm}|}" + "\n"
         + lt_head(r"\textbf{Live Loads (LL) -- Vehicular Loads}",
-                  r"\textbf{Vehicle Class} & \textbf{Impact Factor} & \textbf{Reference}") + "\n"
+                  r"\textbf{Vehicle Class} & \textbf{Total Load (kN)} & \textbf{Impact Factor} & \textbf{Reference}") + "\n"
         + "\n".join(veh_rows) + "\n"
         + r"\end{longtable}"
     )
