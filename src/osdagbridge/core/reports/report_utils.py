@@ -4,6 +4,7 @@ from osdagbridge.core.utils.common import (
     KEY_MP_GIRDER_DEPTH,
     KEY_TS_NO_OF_GIRDERS
 )
+import re
 
 
 def _tex(value):
@@ -124,3 +125,8 @@ def lt_head(caption_tex, header_row_tex):
         + head
         + r"\endhead" + "\n"
     )
+
+
+def keep_rows_together(group_tex: str) -> str:
+    group_tex = group_tex.replace("\\\\[6pt]\n\\cline", "\\\\*[6pt]\n\\cline")
+    return re.sub(r"\\multirow\{\d+\}\{\*\}", r"\\multirow{1}{*}", group_tex)

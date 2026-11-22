@@ -23,4 +23,13 @@ def table_layout_block():
         r"\setlength{\extrarowheight}{" + EXTRA_ROW_HEIGHT + "}\n"
         r"\BeforeBeginEnvironment{table}{\needspace{" + str(NEEDSPACE_LINES) + r"\baselineskip}}" + "\n"
         r"\BeforeBeginEnvironment{longtable}{\needspace{" + str(NEEDSPACE_LINES) + r"\baselineskip}}" + "\n"
+        r"\usepackage{etoolbox}\n"
+        r"\usepackage{needspace}\n"
+        r"\BeforeBeginEnvironment{longtable}{\Needspace{22\baselineskip}}\n"
     )
+
+# Chart styling (used by charts.py)
+CHART_PASS_COLOR = "#" + OSDAG_GREEN_HEX
+CHART_FAIL_COLOR = "#C0392B"
+CHART_LIMIT_COLOR = "red"
+CHART_DPI = 200
